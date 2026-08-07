@@ -1,25 +1,15 @@
-import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import PostList from './pages/PostList'
+import PostDetail from './pages/PostDetail'
 
 function App() {
-  const [posts, setPosts] = useState([])
-
-  useEffect(() => {
-    fetch('http://localhost:8081/api/posts')
-      .then((response) => response.json())
-      .then((data) => setPosts(data))
-  }, [])
-
   return (
-    <div>
-      <h1>게시판</h1>
-      <ul>
-        {posts.map((post) => (
-          <li key={post.id}>
-            {post.title} - {post.writer}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<PostList />} />
+        <Route path="/posts/:id" element={<PostDetail />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 
