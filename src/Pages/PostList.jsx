@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 
 function PostList() {
-
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [writer, setWriter] = useState('')
@@ -10,12 +9,19 @@ function PostList() {
   const [editingId, setEditingId] = useState(null)
   const titleInputRef = useRef(null)
 
+  // 💡 페이징용 State 추가!
+  const [page, setPage] = useState(0)          // 현재 페이지 (0부터 시작)
+  const [totalPages, setTotalPages] = useState(0) // 전체 페이지 수
 
+  // 💡 page가 변경될 때마다 해당 페이지 데이터 백엔드 요청
   useEffect(() => {
-    fetch('http://localhost:8081/api/posts')
+    fetch(`http://localhost:8081/api/posts?page=${page}`)
       .then((response) => response.json())
-      .then((data) => setPosts(data))
-  }, [])
+      .then((data) => {
+        setPosts(data.content || [])   // Page 객체 내 실제 목록은 data.content
+        setTotalPages(data.totalPages) // 전체 페이지 수 업데이트
+      })
+  }, [page])
 
   const handleCreate = () => {
     fetch('http://localhost:8081/api/posts', {
@@ -24,8 +30,18 @@ function PostList() {
       body: JSON.stringify({ title, content, writer }),
     })
       .then((response) => response.json())
-      .then((newPost) => {
-        setPosts([...posts, newPost])
+      .then(() => {
+        // 새 글을 등록하면 첫 페이지(0번)로 이동하면서 데이터 새로고침
+        if (page === 0) {
+          fetch('http://localhost:8081/api/posts?page=0')
+            .then((res) => res.json())
+            .then((data) => {
+              setPosts(data.content || [])
+              setTotalPages(data.totalPages)
+            })
+        } else {
+          setPage(0)
+        }
         setTitle('')
         setContent('')
         setWriter('')
@@ -37,7 +53,13 @@ function PostList() {
     fetch(`http://localhost:8081/api/posts/${id}`, {
       method: 'DELETE',
     }).then(() => {
-      setPosts(posts.filter((post) => post.id !== id))
+      // 삭제 후 현재 페이지 목록 다시 불러오기
+      fetch(`http://localhost:8081/api/posts?page=${page}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setPosts(data.content || [])
+          setTotalPages(data.totalPages)
+        })
     })
   }
 
@@ -63,7 +85,7 @@ function PostList() {
       <ul>
         {posts.map((post) => (
           <li key={post.id}>
-            <Link to={`/posts/${post.id}`}>{post.title}</Link> - {post.writer} - {post.createdAt}
+            <Link to={`/posts/${post.id}`}>{post.title}</Link> (조회수: {post.viewCount}) - {post.writer} - {post.createdAt}
             <button onClick={() => handleDelete(post.id)}>삭제</button>
             <button
               onClick={() => {
@@ -78,6 +100,28 @@ function PostList() {
           </li>
         ))}
       </ul>
+
+      {/* 💡 하단 페이징 버튼 영역 추가! */}
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
+        <button 
+          onClick={() => setPage(page - 1)} 
+          disabled={page === 0}
+        >
+          이전
+        </button>
+
+        <span>
+          {page + 1} / {totalPages === 0 ? 1 : totalPages} 페이지
+        </span>
+
+        <button 
+          onClick={() => setPage(page + 1)} 
+          disabled={page + 1 >= totalPages}
+        >
+          다음
+        </button>
+      </div>
+
       <div>
         <input
           type="text"
